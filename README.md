@@ -27,7 +27,6 @@ A lightweight PHP framework for receiving, queuing, and processing webhooks with
 
 ## 📦 Installation
 
-```bash
 git clone https://github.com/gnomegtk/HookFrame.git
 cd HookFrame
 composer install
