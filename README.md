@@ -91,6 +91,7 @@ When a handler (e.g. `ExactOmieHandler`) throws an exception, the consumer shoul
 
 You can configure via `.env` **or** system environment variables (`getenv()`).
 
+```env
 # .env file (example)
 RABBITMQ_HOST=localhost
 RABBITMQ_PORT=5672
@@ -101,3 +102,4 @@ RABBITMQ_QUEUE=queue_exact_omie
 EXACT_TOKEN=xxxxx
 
 RETRY_LIMIT=3
+```
