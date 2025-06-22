@@ -1,0 +1,38 @@
+# Composer dependencies
+/vendor/
+/composer.phar
+
+# Environment files (do not commit secrets)
+.env
+
+# Logs and runtime output
+/logs/
+/*.log
+
+# Temporary and cache files
+*.swp        # Swap files (vi/vim)
+*.swo
+*.tmp
+*.cache
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Windows system files
+Thumbs.db
+
+# IDE/editor configurations
+.idea/                     # PhpStorm/WebStorm
+.vscode/                   # VS Code
+*.code-workspace
+
+# Developer notes and temporary references
+links.txt
+pendencias.txt
+
+# Example models or test data (optional: uncomment to track)
+/models_json/

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>HookFrame – Documentation</title>
+  <style>
+    body { font-family: sans-serif; max-width: 900px; margin: 2em auto; line-height: 1.6; padding: 0 1em; }
+    h1,h2,h3 { color: #333; }
+    code, pre { background: #f4f4f4; padding: .5em; border-radius: 3px; }
+    pre { overflow-x: auto; }
+    table { width:100%; border-collapse: collapse; margin:1em 0; }
+    th, td { border:1px solid #ccc; padding:.5em; text-align:left; }
+  </style>
+</head>
+<body>
+  <h1>HookFrame – Webhook Processing Framework</h1>
+
+  <h2>4. webhook.php</h2>
+  <p>
+    The generic entrypoint that accepts <strong>any</strong> HTTP POST (or other) requests.  
+    It does <em>not</em> validate tokens or assume JSON bodies. It simply:
+  </p>
+  <ol>
+    <li>Loads environment variables via <code>safeLoad()</code> (falls back to real env vars).</li>
+    <li>Connects to RabbitMQ and declares the target queue.</li>
+    <li>Reads the raw HTTP request body as a string (no parsing).</li>
+    <li>Wraps it in a JSON envelope with fields:
+      <ul>
+        <li><code>source</code>: from <code>WEBHOOK_SOURCE</code> env or <code>hookframe</code></li>
+        <li><code>event</code>: from <code>WEBHOOK_EVENT</code> env or default <code>event</code></li>
+        <li><code>timestamp</code>: current UTC in ISO 8601</li>
+        <li><code>payload</code>: the raw request body string</li>
+      </ul>
+    </li>
+    <li>Publishes the envelope (persistent) to RabbitMQ.</li>
+    <li>Echoes <code>OK</code> back to the client.</li>
+  </ol>
+
+  <pre><code>&lt;?php
+// webhook.php
+
+require_once __DIR__ . '/vendor/autoload.php';
+
+use Dotenv\Dotenv;
+use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Message\AMQPMessage;
+
+// Load .env (if exists), else use system env
+$dotenv = Dotenv::create(__DIR__);
+$dotenv->safeLoad();
+
+// Connect to RabbitMQ
+$conn    = new AMQPStreamConnection(
+    getenv('RABBITMQ_HOST'),
+    getenv('RABBITMQ_PORT'),
+    getenv('RABBITMQ_USER'),
+    getenv('RABBITMQ_PASSWORD')
+);
+$channel = $conn->channel();
+$channel->queue_declare(getenv('RABBITMQ_QUEUE'), false, true, false, false);
+
+// Read raw body
+$rawBody = file_get_contents('php://input');
+
+// Build envelope
+$envelope = [
+  'source'    => getenv('WEBHOOK_SOURCE') ?: 'hookframe',
+  'event'     => getenv('WEBHOOK_EVENT')  ?: 'event',
+  'timestamp' => gmdate('c'),
+  'payload'   => $rawBody
+];
+
+// Publish envelope
+$msg = new AMQPMessage(
+  json_encode($envelope),
+  ['delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT]
+);
+$channel->basic_publish($msg, '', getenv('RABBITMQ_QUEUE'));
+
+echo "OK";
+?></code></pre>
+
+  <h2>5. Envelope Details</h2>
+  <table>
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td><code>source</code></td><td>Identifier of the sender (env <code>WEBHOOK_SOURCE</code> or <code>hookframe</code>).</td></tr>
+    <tr><td><code>event</code></td><td>Event name (env <code>WEBHOOK_EVENT</code> or default <code>event</code>).</td></tr>
+    <tr><td><code>timestamp</code></td><td>UTC time when envelope was created.</td></tr>
+    <tr><td><code>payload</code></td><td>Raw request body as a string; handlers decide how to parse it.</td></tr>
+  </table>
+
+  <h2>6. Handler Responsibility</h2>
+  <p>
+    Individual handlers (e.g. <code>ExampleHandler</code>) receive the envelope and can decide:
+  </p>
+  <ul>
+    <li>Whether to parse <code>payload</code> as JSON, XML, form-data, etc.</li>
+    <li>How to filter by <code>source</code> or <code>event</code>.</li>
+    <li>Business logic and error handling.</li>
+  </ul>
+
+  <h2>7. Consumer & Retry Logic</h2>
+  <p>See <code>consumer.php</code> for manual ACK, retry count <code>_retry</code>, and re-publish logic.</p>
+
+  <h2>8. Configuration</h2>
+  <pre><code># .env.example
+RABBITMQ_HOST=localhost
+RABBITMQ_PORT=5672
+RABBITMQ_USER=guest
+RABBITMQ_PASSWORD=guest
+RABBITMQ_QUEUE=queue_webhooks
+
+# optional defaults for source & event
+WEBHOOK_SOURCE=hookframe
+WEBHOOK_EVENT=event
+
+RETRY_LIMIT=3
+</code></pre>
+
+  <h2>9. License</h2>
+  <p>MIT — see the <code>LICENSE</code> file.</p>
+</body>
+</html>
