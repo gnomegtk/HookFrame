@@ -49,36 +49,15 @@ cp .env.example .env
 
 
 2. **Webhook Receiver**  
-   - Validates `token_exact`, wraps raw JSON into an _envelope_:
-     ```json
-     {
-       "source": "exact",
-       "event": "execucao",
-       "timestamp": "...",
-       "payload": { /* lead data */ }
-     }
-     ```
    - Publishes to RabbitMQ.
 
-3. **MessageHandler**  
-   - `basic_get(auto_ack=false)`  
-   - Parses envelope, checks `_retry` count
-   - Delegates to next handler  
-   - On exception, requeues with `_retry + 1`  
-   - After `RETRY_LIMIT`, discards message.
-
-4. **ExactOmieHandler**  
-   - Verifies `source === 'exact'` && `event === 'execucao'`  
-   - Validates required fields (`leadId`, `nome`, `email`)  
-   - Builds Omie payload with safe fallbacks  
-   - Sends via `curl`  
-   - Throws on non-200 → triggers retry
+3. **ExampleHandler**  
 
 ---
 
 ## 🔁 Retry Logic
 
-When a handler (e.g. `ExactOmieHandler`) throws an exception, the consumer should:
+When a handler (e.g. `ExampleHandler`) throws an exception, the consumer should:
 
 1. **ACK** the current message (to remove it).
 2. **Increment** the `_retry` field in the JSON envelope.
